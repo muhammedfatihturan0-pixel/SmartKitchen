@@ -1,0 +1,6 @@
+{
+  "name": "Smart Kitchen AI",
+  "description": "Yapay zeka destekli akıllı mutfak, SKT takibi, gıda israfını önleme, otomatik SKT tespiti ve sürdürülebilir tarif asistanı.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
