@@ -1,21 +1,43 @@
 package com.example.ui
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -25,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Locale
 
 @Composable
@@ -33,7 +56,7 @@ fun MonthlyReportDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val metrics = remember { viewModel.getDetailedEcoFinancialMetrics() }
+    val metrics by viewModel.ecoMetrics.collectAsStateWithLifecycle()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -53,7 +76,6 @@ fun MonthlyReportDialog(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -61,7 +83,8 @@ fun MonthlyReportDialog(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Surface(
                             color = SafeGreen.copy(alpha = 0.15f),
@@ -86,7 +109,6 @@ fun MonthlyReportDialog(
                     }
                 }
 
-                // Scrollable Content / Report Card
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -94,7 +116,6 @@ fun MonthlyReportDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Eco Score Hero
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -120,8 +141,10 @@ fun MonthlyReportDialog(
                             )
                             Text(
                                 when {
+                                    metrics.totalItemsRescued == 0 && metrics.totalMealsCooked == 0 && metrics.totalMoneyLostTl == 0.0 ->
+                                        "🌱 Henüz kayıt yok — ürün tükettikçe skorunuz burada hesaplanacak."
                                     metrics.sustainabilityScore >= 80 -> "🌟 Mükemmel! Sıfır Atık Şampiyonu!"
-                                    metrics.sustainabilityScore >= 50 -> "🌱 Harika Gidiyorsunuz! İsraf kontrol altında."
+                                    metrics.sustainabilityScore >= 50 -> "🌱 İyi Gidiyorsunuz! İsraf kontrol altında."
                                     else -> "⚠️ Dikkat! Dolaptaki SKT uyarılarına öncelik verin."
                                 },
                                 fontSize = 12.sp,
@@ -132,12 +155,7 @@ fun MonthlyReportDialog(
                         }
                     }
 
-                    // 2x2 Metric Grid
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Kurtarılan Bütçe
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
@@ -159,7 +177,6 @@ fun MonthlyReportDialog(
                             }
                         }
 
-                        // İsraf Kaybı
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
@@ -182,11 +199,7 @@ fun MonthlyReportDialog(
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // CO2 Salınımı
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
@@ -208,7 +221,6 @@ fun MonthlyReportDialog(
                             }
                         }
 
-                        // Su Ayak İzi
                         Card(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
@@ -231,7 +243,6 @@ fun MonthlyReportDialog(
                         }
                     }
 
-                    // Key Highlights
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -239,31 +250,34 @@ fun MonthlyReportDialog(
                         border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
                     ) {
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("📌 Ayın Öne Çıkan Başarıları", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DarkCharcoal)
+                            Text("📌 Öne Çıkan Başarılar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DarkCharcoal)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("🍳", fontSize = 16.sp)
                                 Text("Toplam ${metrics.totalMealsCooked} adet sıfır atık yemek pişirildi", fontSize = 11.sp, color = DarkCharcoal)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("🥦", fontSize = 16.sp)
-                                Text("${metrics.totalItemsRescued} gıda ürünü son kullanma öncesi kurtarıldı", fontSize = 11.sp, color = DarkCharcoal)
+                                Text("${metrics.totalItemsRescued} adet gıda ürünü israftan kurtarıldı", fontSize = 11.sp, color = DarkCharcoal)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("🌳", fontSize = 16.sp)
-                                Text("Kurtarılan CO2 yaklaşık ${(metrics.totalCo2SavedKg / 2.5).toInt().coerceAtLeast(1)} ağacın yıllık temizliğine eşdeğer", fontSize = 11.sp, color = DarkCharcoal)
+                                val treeText = if (metrics.totalCo2SavedKg <= 0.0) {
+                                    "Henüz CO₂ tasarrufu kaydedilmedi (0 ağaç eşdeğeri)"
+                                } else {
+                                    "Kurtarılan CO₂ yaklaşık ${String.format(Locale.US, "%.2f", metrics.equivalentTrees)} yetişkin ağacın yıllık emilimine eşdeğer"
+                                }
+                                Text(treeText, fontSize = 11.sp, color = DarkCharcoal)
                             }
                         }
                     }
                 }
 
-                // Share Button & Close
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(46.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, Color.LightGray)
                     ) {
@@ -272,14 +286,20 @@ fun MonthlyReportDialog(
 
                     Button(
                         onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Smart Kitchen AI - Aylık Mutfak Karnem")
-                                putExtra(Intent.EXTRA_TEXT, metrics.monthlySummaryText)
+                            try {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Smart Kitchen AI - Aylık Mutfak Karnem")
+                                    putExtra(Intent.EXTRA_TEXT, metrics.monthlySummaryText)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Karneni Paylaş"))
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Paylaşım uygulaması bulunamadı.", Toast.LENGTH_SHORT).show()
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Karneni Paylaş"))
                         },
-                        modifier = Modifier.weight(1.5f).height(46.dp),
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(46.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = KitchenSage)
                     ) {

@@ -2,18 +2,42 @@ package com.example.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.OutdoorGrill
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +57,8 @@ fun MealPlannerSection(
 ) {
     val mealPlans by viewModel.mealPlans.collectAsStateWithLifecycle()
     val isLoading by viewModel.isMealPlanLoading.collectAsStateWithLifecycle()
+    val weeklyTip by viewModel.weeklyMealPlanTip.collectAsStateWithLifecycle()
+    val usedFallback by viewModel.mealPlanUsedFallback.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val daysOfWeek = listOf("Tümü", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
@@ -53,7 +79,6 @@ fun MealPlannerSection(
             .testTag("meal_planner_section"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // AI Generator Header Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -71,7 +96,8 @@ fun MealPlannerSection(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Surface(
                             color = KitchenSage,
@@ -117,7 +143,7 @@ fun MealPlannerSection(
                 }
 
                 Text(
-                    "Buzdolabınızdaki ve kilerinizdeki gıdaları analiz edip 7 günlük sıfır atık menüsü hazırlar.",
+                    "Buzdolabınızdaki gıdaları ve diyet tercihlerinizi dikkate alarak 7 günlük sıfır atık menüsü hazırlar.",
                     fontSize = 11.sp,
                     color = DarkCharcoal,
                     lineHeight = 16.sp
@@ -125,11 +151,18 @@ fun MealPlannerSection(
 
                 Button(
                     onClick = {
-                        viewModel.generateWeeklyMealPlanWithAi {
-                            Toast.makeText(context, "Haftalık yemek planınız güncellendi! 🥗", Toast.LENGTH_SHORT).show()
+                        viewModel.generateWeeklyMealPlanWithAi { isAi ->
+                            val msg = if (isAi) {
+                                "Gemini AI ile haftalık menünüz oluşturuldu! 🥗"
+                            } else {
+                                "Çevrimdışı akıllı menü diyetinize göre hazırlandı!"
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KitchenSage),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isLoading
@@ -137,12 +170,12 @@ fun MealPlannerSection(
                     if (isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI Menü Hazırlıyor...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Menü Hazırlanıyor...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     } else {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            if (mealPlans.isEmpty()) "Haftalık Planı AI ile Oluştur" else "Yeniden AI ile Planla",
+                            if (mealPlans.isEmpty()) "Haftalık Planı Oluştur" else "Menüyü Yeniden Planla",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -151,7 +184,29 @@ fun MealPlannerSection(
             }
         }
 
-        // Day of week selector chips
+        if (weeklyTip.isNotBlank()) {
+            Surface(
+                color = if (usedFallback) KitchenClay.copy(alpha = 0.08f) else SoftSageBg,
+                border = BorderStroke(1.dp, if (usedFallback) KitchenClay.copy(alpha = 0.3f) else BorderColor),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        tint = if (usedFallback) KitchenClay else KitchenSage,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(weeklyTip, fontSize = 11.sp, color = DarkCharcoal, lineHeight = 15.sp)
+                }
+            }
+        }
+
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth()
@@ -175,7 +230,6 @@ fun MealPlannerSection(
             }
         }
 
-        // Meal list
         if (filteredMeals.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -192,7 +246,7 @@ fun MealPlannerSection(
                 ) {
                     Text("🍽️", fontSize = 28.sp)
                     Text("Henüz yemek planı oluşturulmadı", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = DarkCharcoal)
-                    Text("Yukarıdaki butona dokunarak dolabınıza özel 7 günlük menüyü oluşturun.", fontSize = 11.sp, color = Color.Gray)
+                    Text("Yukarıdaki butona dokunarak 7 günlük sıfır atık menünüzü oluşturun.", fontSize = 11.sp, color = Color.Gray)
                 }
             }
         } else {
@@ -206,7 +260,9 @@ fun MealPlannerSection(
                                 title = meal.recipeTitle,
                                 prepTime = meal.prepTime,
                                 calories = meal.calories,
-                                instructions = meal.instructions.ifBlank { "Malzemeler: ${meal.ingredients}. Tüm malzemeleri tencerede veya fırında pişirin." },
+                                instructions = meal.instructions.ifBlank {
+                                    "Malzemeler: ${meal.ingredients}. Tüm malzemeleri hazırlayıp pişirin."
+                                },
                                 usedExpiringItems = meal.ingredients.split(",").map { it.trim() }
                             )
                             onStartCooking(recipe)
@@ -245,10 +301,7 @@ fun MealPlanCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Surface(
-                        color = KitchenClay.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
+                    Surface(color = KitchenClay.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
                         Text(
                             text = meal.dayOfWeek,
                             fontSize = 10.sp,
@@ -257,18 +310,10 @@ fun MealPlanCard(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
-                    Text(
-                        text = meal.mealType,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray
-                    )
+                    Text(text = meal.mealType, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 }
 
-                Surface(
-                    color = HighlightGreen.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                Surface(color = HighlightGreen.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp)) {
                     Text(
                         text = "⚡ ${meal.calories} kcal • ⏱️ ${meal.prepTime}",
                         fontSize = 9.sp,
@@ -286,19 +331,10 @@ fun MealPlanCard(
                 color = if (meal.isCooked) Color.Gray else DarkCharcoal
             )
 
-            Text(
-                text = "🥗 Malzemeler: ${meal.ingredients}",
-                fontSize = 11.sp,
-                color = Color.DarkGray
-            )
+            Text(text = "🥗 Malzemeler: ${meal.ingredients}", fontSize = 11.sp, color = Color.DarkGray)
 
             if (meal.instructions.isNotBlank()) {
-                Text(
-                    text = meal.instructions,
-                    fontSize = 10.sp,
-                    color = Color.Gray,
-                    lineHeight = 14.sp
-                )
+                Text(text = meal.instructions, fontSize = 10.sp, color = Color.Gray, lineHeight = 14.sp)
             }
 
             Row(
@@ -308,7 +344,9 @@ fun MealPlanCard(
             ) {
                 OutlinedButton(
                     onClick = onToggleCooked,
-                    modifier = Modifier.weight(1f).height(36.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = if (meal.isCooked) SafeGreen else Color.DarkGray
@@ -322,7 +360,7 @@ fun MealPlanCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (meal.isCooked) "Pişirildi (+40 Puan)" else "Pişirildi Olarak İşaretle",
+                        text = if (meal.isCooked) "Pişirildi (+40 Puan)" else "Pişirildi İşaretle",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )

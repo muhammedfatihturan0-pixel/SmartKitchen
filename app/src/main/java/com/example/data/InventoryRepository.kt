@@ -18,6 +18,7 @@ class InventoryRepository(private val inventoryDao: InventoryDao) {
 
     // Shopping List
     val shoppingItems: Flow<List<ShoppingItem>> = inventoryDao.getAllShoppingItems()
+    suspend fun findShoppingItemByName(name: String) = inventoryDao.findShoppingItemByName(name)
     suspend fun insertShoppingItem(item: ShoppingItem) = inventoryDao.insertShoppingItem(item)
     suspend fun insertShoppingItems(items: List<ShoppingItem>) = inventoryDao.insertShoppingItems(items)
     suspend fun updateShoppingItem(item: ShoppingItem) = inventoryDao.updateShoppingItem(item)

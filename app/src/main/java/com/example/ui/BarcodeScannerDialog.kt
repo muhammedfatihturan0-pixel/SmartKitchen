@@ -2,27 +2,57 @@ package com.example.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -30,6 +60,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.example.api.BarcodeProductInfo
 import com.example.api.BarcodeScannerHelper
+import com.example.util.BitmapUtils
 
 @Composable
 fun BarcodeScannerDialog(
@@ -40,22 +71,65 @@ fun BarcodeScannerDialog(
     val context = LocalContext.current
     var manualBarcodeInput by remember { mutableStateOf("") }
     var detectedProduct by remember { mutableStateOf<BarcodeProductInfo?>(null) }
+    var editedName by remember { mutableStateOf("") }
+    var editedQuantity by remember { mutableStateOf("") }
     var isScanning by remember { mutableStateOf(false) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun setDetected(info: BarcodeProductInfo) {
+        detectedProduct = info
+        editedName = info.name
+        editedQuantity = info.defaultQuantity
+    }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            isScanning = true
-            viewModel.scanBarcodeBitmap(bitmap) { info ->
-                isScanning = false
-                if (info != null) {
-                    detectedProduct = info
-                    Toast.makeText(context, "Barkod Okundu: ${info.name}", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Görselde barkod bulunamadı. Lütfen daha yakından veya net çekin.", Toast.LENGTH_LONG).show()
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val uri = pendingCameraUri
+        if (success && uri != null) {
+            val bitmap = BitmapUtils.decodeSampledSoftwareBitmap(context, uri, maxDimension = 1600)
+            if (bitmap != null) {
+                isScanning = true
+                viewModel.scanBarcodeBitmap(bitmap) { info ->
+                    isScanning = false
+                    if (info != null) {
+                        setDetected(info)
+                        Toast.makeText(context, "Barkod Okundu: ${info.name}", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Görselde barkod bulunamadı. Daha net ve yakından çekin.", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val bitmap = BitmapUtils.decodeSampledSoftwareBitmap(context, uri, maxDimension = 1600)
+            if (bitmap != null) {
+                isScanning = true
+                viewModel.scanBarcodeBitmap(bitmap) { info ->
+                    isScanning = false
+                    if (info != null) {
+                        setDetected(info)
+                        Toast.makeText(context, "Barkod Okundu: ${info.name}", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Seçilen görselde barkod bulunamadı.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val uri = BitmapUtils.createCameraImageUri(context)
+            pendingCameraUri = uri
+            takePictureLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Kamera açılamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -63,7 +137,7 @@ fun BarcodeScannerDialog(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            takePictureLauncher.launch(null)
+            launchCamera()
         } else {
             Toast.makeText(context, "Barkod taraması için kamera izni gerekiyor.", Toast.LENGTH_SHORT).show()
         }
@@ -72,7 +146,7 @@ fun BarcodeScannerDialog(
     fun startCamera() {
         val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-            takePictureLauncher.launch(null)
+            launchCamera()
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -96,7 +170,6 @@ fun BarcodeScannerDialog(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -104,7 +177,8 @@ fun BarcodeScannerDialog(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Surface(
                             color = KitchenSage.copy(alpha = 0.15f),
@@ -120,7 +194,7 @@ fun BarcodeScannerDialog(
                         }
                         Column {
                             Text("📦 Barkod Okuyucu", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = DarkCharcoal)
-                            Text("Ürünleri 1 saniyede dolabınıza kaydedin", fontSize = 11.sp, color = Color.Gray)
+                            Text("Kamera, galeri veya barkod no ile 1 saniyede ekleyin", fontSize = 11.sp, color = Color.Gray)
                         }
                     }
                     IconButton(onClick = onDismiss) {
@@ -128,11 +202,29 @@ fun BarcodeScannerDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // If Product Detected Card
-                if (detectedProduct != null) {
-                    val product = detectedProduct!!
+                if (isScanning) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = SoftSageBg)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator(color = KitchenSage, modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                            Text("Barkod taranıyor ve ürün bilgileri sorgulanıyor...", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkCharcoal)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                detectedProduct?.let { product ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -140,7 +232,7 @@ fun BarcodeScannerDialog(
                         border = BorderStroke(1.dp, KitchenSage)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(
@@ -148,11 +240,8 @@ fun BarcodeScannerDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("✅ Bulunan Ürün", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = KitchenSage)
-                                Surface(
-                                    color = KitchenSage,
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
+                                Text("✅ Bulunan Ürün (${product.sourceLabel})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitchenSage)
+                                Surface(color = KitchenSage, shape = RoundedCornerShape(6.dp)) {
                                     Text(
                                         text = product.storage,
                                         fontSize = 10.sp,
@@ -163,24 +252,45 @@ fun BarcodeScannerDialog(
                                 }
                             }
 
-                            Text(
-                                text = product.name,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = DarkCharcoal
+                            OutlinedTextField(
+                                value = editedName,
+                                onValueChange = { editedName = it },
+                                label = { Text("Ürün Adı", fontSize = 10.sp) },
+                                singleLine = true,
+                                textStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DarkCharcoal),
+                                colors = smartKitchenFieldColors(),
+                                modifier = Modifier.fillMaxWidth()
                             )
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Kategori: ${product.category}", fontSize = 11.sp, color = Color.DarkGray)
-                                Text("•", color = Color.LightGray)
-                                Text("Raf Ömrü: ~${product.shelfLifeDays} Gün", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitchenClay)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = editedQuantity,
+                                    onValueChange = { editedQuantity = it },
+                                    label = { Text("Miktar", fontSize = 10.sp) },
+                                    singleLine = true,
+                                    textStyle = TextStyle(fontSize = 12.sp, color = DarkCharcoal),
+                                    colors = smartKitchenFieldColors(),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(product.category, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DarkCharcoal)
+                                    Text("Raf Ömrü: ~${product.shelfLifeDays} Gün", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitchenClay)
+                                }
                             }
 
                             Button(
                                 onClick = {
-                                    viewModel.addBarcodeProductToInventory(product)
-                                    onProductAdded(product)
-                                    Toast.makeText(context, "${product.name} dolaba eklendi!", Toast.LENGTH_SHORT).show()
+                                    val finalProduct = product.copy(
+                                        name = editedName.trim().ifBlank { product.name },
+                                        defaultQuantity = editedQuantity.trim().ifBlank { product.defaultQuantity }
+                                    )
+                                    viewModel.addBarcodeProductToInventory(finalProduct)
+                                    onProductAdded(finalProduct)
+                                    Toast.makeText(context, "${finalProduct.name} dolaba eklendi!", Toast.LENGTH_SHORT).show()
                                     detectedProduct = null
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -193,42 +303,44 @@ fun BarcodeScannerDialog(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                // Camera Scanner Trigger
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { startCamera() },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = SoftSageBg),
-                    border = BorderStroke(1.dp, KitchenSage.copy(alpha = 0.3f))
+                // Camera & Gallery Scan Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
+                    Button(
+                        onClick = { startCamera() },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            .weight(1.3f)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = KitchenSage),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Surface(
-                            color = KitchenSage,
-                            shape = CircleShape,
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.padding(11.dp))
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Kamera ile Barkod Tara", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = DarkCharcoal)
-                            Text("Gıda paketinin arkasındaki barkodu kameraya tutun", fontSize = 11.sp, color = Color.Gray)
-                        }
-                        Icon(Icons.Default.ArrowForwardIos, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Kamera ile Tara", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        border = BorderStroke(1.dp, KitchenSage),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = KitchenSage, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Galeri", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = KitchenSage)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Manual Input
+                // Manual Barcode Input (with Open Food Facts fallback)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -237,25 +349,28 @@ fun BarcodeScannerDialog(
                     OutlinedTextField(
                         value = manualBarcodeInput,
                         onValueChange = { manualBarcodeInput = it },
-                        placeholder = { Text("Barkod no girin (örn: 8690504...)", fontSize = 11.sp) },
+                        placeholder = { Text("Barkod no (örn: 8690504012345)", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = KitchenSage,
-                            unfocusedBorderColor = Color.LightGray
-                        )
+                        textStyle = TextStyle(fontSize = 13.sp, color = DarkCharcoal),
+                        colors = smartKitchenFieldColors()
                     )
                     Button(
                         onClick = {
                             if (manualBarcodeInput.isNotBlank()) {
-                                val info = BarcodeScannerHelper.lookupBarcode(manualBarcodeInput)
-                                detectedProduct = info
+                                isScanning = true
+                                viewModel.lookupBarcodeManual(manualBarcodeInput) { info ->
+                                    isScanning = false
+                                    setDetected(info)
+                                }
                             }
                         },
+                        enabled = !isScanning,
                         colors = ButtonDefaults.buttonColors(containerColor = KitchenSage),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(50.dp)
+                        modifier = Modifier.height(52.dp)
                     ) {
                         Text("Sorgula", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
@@ -263,13 +378,13 @@ fun BarcodeScannerDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Fast Catalog Picker (Great for testing in emulator!)
                 Text(
-                    "⚡ Hızlı Test & Sık Kullanılan Ürün Barkodları:",
+                    "⚡ Hızlı Seçim & Sık Kullanılan Ürünler:",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = DarkCharcoal
                 )
+                Spacer(modifier = Modifier.height(6.dp))
 
                 val sampleList = remember { BarcodeScannerHelper.getAllSampleBarcodes() }
                 LazyColumn(
@@ -278,13 +393,11 @@ fun BarcodeScannerDialog(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(sampleList) { item ->
+                    items(sampleList, key = { it.barcode }) { item ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    detectedProduct = item
-                                },
+                                .clickable { setDetected(item) },
                             shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
@@ -296,14 +409,11 @@ fun BarcodeScannerDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(item.name, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = DarkCharcoal)
                                     Text("Barkod: ${item.barcode} • ${item.category}", fontSize = 10.sp, color = Color.Gray)
                                 }
-                                Surface(
-                                    color = SoftSageBg,
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
+                                Surface(color = SoftSageBg, shape = RoundedCornerShape(6.dp)) {
                                     Text(
                                         "Seç",
                                         fontSize = 10.sp,
@@ -317,14 +427,17 @@ fun BarcodeScannerDialog(
                     }
                 }
 
-                // Close button
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KitchenSage)
                 ) {
-                    Text("Tamamla", fontWeight = FontWeight.Bold)
+                    Text("Kapat", fontWeight = FontWeight.Bold)
                 }
             }
         }

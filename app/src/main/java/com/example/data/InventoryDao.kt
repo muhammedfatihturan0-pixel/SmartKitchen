@@ -43,6 +43,9 @@ interface InventoryDao {
     @Query("SELECT * FROM shopping_items ORDER BY isChecked ASC, addedDate DESC")
     fun getAllShoppingItems(): Flow<List<ShoppingItem>>
 
+    @Query("SELECT * FROM shopping_items WHERE LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun findShoppingItemByName(name: String): ShoppingItem?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertShoppingItem(item: ShoppingItem): Long
 

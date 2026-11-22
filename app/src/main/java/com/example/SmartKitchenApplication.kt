@@ -3,6 +3,7 @@ package com.example
 import android.app.Application
 import android.util.Log
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
@@ -14,20 +15,25 @@ class SmartKitchenApplication : Application() {
         super.onCreate()
 
         try {
-            // Firebase initialization
-            Firebase.initialize(this)
-
-            // Debug / Release ayrımı ile App Check başlatma
-            val appCheckProviderFactory = if (BuildConfig.DEBUG) {
-                DebugAppCheckProviderFactory.getInstance()
+            val initializedApp = if (FirebaseApp.getApps(this).isNotEmpty()) {
+                FirebaseApp.getInstance()
             } else {
-                PlayIntegrityAppCheckProviderFactory.getInstance()
+                Firebase.initialize(this)
             }
 
-            Firebase.appCheck.installAppCheckProviderFactory(appCheckProviderFactory)
-            Log.d("SmartKitchenApplication", "Firebase App Check başarıyla başlatıldı (DEBUG: ${BuildConfig.DEBUG})")
+            if (initializedApp != null) {
+                val appCheckProviderFactory = if (BuildConfig.DEBUG) {
+                    DebugAppCheckProviderFactory.getInstance()
+                } else {
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+                }
+                Firebase.appCheck.installAppCheckProviderFactory(appCheckProviderFactory)
+                Log.d("SmartKitchenApplication", "Firebase App Check başlatıldı (DEBUG: ${BuildConfig.DEBUG})")
+            } else {
+                Log.i("SmartKitchenApplication", "Firebase yapılandırması bulunamadı; doğrudan Gemini REST API kullanılacak.")
+            }
         } catch (e: Exception) {
-            Log.e("SmartKitchenApplication", "Firebase App Check başlatılırken hata oluştu: ${e.message}", e)
+            Log.i("SmartKitchenApplication", "Firebase opsiyonel başlatma atlandı: ${e.message}")
         }
     }
 }

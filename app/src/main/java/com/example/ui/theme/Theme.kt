@@ -1,22 +1,24 @@
 package com.example.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = GeometricSage,
     secondary = GeometricClay,
     tertiary = HighlightGreenButton,
-    background = GeometricDark,
-    surface = GeometricDark,
-    onPrimary = GeometricSoftBg,
-    onSecondary = GeometricSoftBg,
-    onBackground = GeometricSoftBg,
-    onSurface = GeometricSoftBg
+    background = GeometricSoftBg,
+    surface = Color.White,
+    surfaceVariant = GeometricSoftBg,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onBackground = GeometricDark,
+    onSurface = GeometricDark,
+    onSurfaceVariant = GeometricDark
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -24,11 +26,13 @@ private val LightColorScheme = lightColorScheme(
     secondary = GeometricClay,
     tertiary = HighlightGreenButton,
     background = GeometricSoftBg,
-    surface = GeometricSoftBg,
-    onPrimary = GeometricSoftBg,
-    onSecondary = GeometricDark,
+    surface = Color.White,
+    surfaceVariant = GeometricSoftBg,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
     onBackground = GeometricDark,
-    onSurface = GeometricDark
+    onSurface = GeometricDark,
+    onSurfaceVariant = GeometricDark
 )
 
 @Composable
